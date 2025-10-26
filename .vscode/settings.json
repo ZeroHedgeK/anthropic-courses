@@ -1,0 +1,6 @@
+{
+  "python.defaultInterpreterPath": "/Users/leventyuksel/miniforge3/envs/financial-analyzer/bin/python",
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda",
+  "python-envs.pythonProjects": []
+}

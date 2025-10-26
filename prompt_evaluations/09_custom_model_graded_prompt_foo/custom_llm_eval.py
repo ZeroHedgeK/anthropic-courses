@@ -1,20 +1,24 @@
-import anthropic
-import os
 import json
+import os
+
+import anthropic
+from anthropic.types import TextBlock
+
 
 def llm_eval(summary, article):
     """
     Evaluate summary using an LLM (Claude).
-    
+
     Args:
     summary (str): The summary to evaluate.
     article (str): The original text that was summarized.
-    
+
     Returns:
     bool: True if the average score is above the threshold, False otherwise.
     """
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
+    # cspell:ignore overexplain backpropagation
     prompt = f"""Evaluate the following summary based on these criteria:
     1. Conciseness (1-5) - is the summary as concise as possible?
         - Conciseness of 1: The summary is unnecessarily long, including excessive details, repetitions, or irrelevant information. It fails to distill the key points effectively.
@@ -34,7 +38,7 @@ def llm_eval(summary, article):
     <example>
     This summary:
     <summary>
-    Artificial neural networks are computer systems inspired by how the human brain works. They are made up of interconnected "neurons" that process information. These networks can learn to do tasks by looking at lots of examples, similar to how humans learn. 
+    Artificial neural networks are computer systems inspired by how the human brain works. They are made up of interconnected "neurons" that process information. These networks can learn to do tasks by looking at lots of examples, similar to how humans learn.
 
     Some key things about neural networks:
     - They can recognize patterns and make predictions
@@ -55,7 +59,7 @@ def llm_eval(summary, article):
 
     2. Basic structure:
     - Input layer receives data
-    - Hidden layers process information 
+    - Hidden layers process information
     - Output layer produces results
     - Neurons are connected by weighted edges
 
@@ -108,41 +112,32 @@ def llm_eval(summary, article):
 
 
     Original Text: <original_article>{article}</original_article>
-    
+
     Summary to Evaluate: <summary>{summary}</summary>
     """
-    
+
     response = client.messages.create(
         model="claude-3-5-sonnet-20240620",
         max_tokens=1000,
         temperature=0,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            },
-            {
-                "role": "assistant",
-                "content": "<json>" 
-            }
-        ],
-        stop_sequences=["</json>"]
+        messages=[{"role": "user", "content": prompt}, {"role": "assistant", "content": "<json>"}],
+        stop_sequences=["</json>"],
     )
-    
-    evaluation = json.loads(response.content[0].text)
+
+    # Extract content block and verify it's a TextBlock before accessing .text
+    content_block = response.content[0]
+    if not isinstance(content_block, TextBlock):
+        raise TypeError(f"Expected TextBlock, got {type(content_block).__name__}")
+
+    evaluation = json.loads(content_block.text)
     # Filter out non-numeric values and calculate the average
     numeric_values = [value for key, value in evaluation.items() if isinstance(value, (int, float))]
     avg_score = sum(numeric_values) / len(numeric_values)
     # Return the average score and the overall model response
-    return avg_score, response.content[0].text
+    return avg_score, content_block.text
+
 
 def get_assert(output: str, context, threshold=4.5):
-    article = context['vars']['article']
-    score, evaluation = llm_eval(output, article )
-    return {
-        "pass": score >= threshold,
-        "score": score,
-        "reason": evaluation
-    }
-    
-
+    article = context["vars"]["article"]
+    score, evaluation = llm_eval(output, article)
+    return {"pass": score >= threshold, "score": score, "reason": evaluation}
